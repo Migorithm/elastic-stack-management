@@ -123,14 +123,16 @@ health_check(){
       shift
     fi
   done
-  #topology 
-  for node in ${AVALIABLE[@]};do
-    $(redis-cli -a $MASTERAUTH info replication 2> /dev/null | grep -E 'role|slave') 
+
+  #to show current topology 
+  for node in ${AVALIABLE[@]}; do
+    $(redis-cli -a $MASTERAUTH info replication 2> /dev/null | grep -E 'role|slave')
+  done
     
-
-  echo '{"available": "'"${AVAILABLE[@]}"'", "unavailable":"'"${UNAVAILABLE[@]}"'"}'} | jq
-}
-
+  echo '{"available": "'"${AVAILABLE[@]}"'", "unavailable":"'"${UNAVAILABLE[@]}"'"}' | jq 
+  
+  }
+  
 
 main(){
   #parameter setter
