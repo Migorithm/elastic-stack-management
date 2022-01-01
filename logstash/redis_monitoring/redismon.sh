@@ -19,9 +19,8 @@ help(){
   echo -e "  redismon.sh [OPTIONS] [arg]
     -f, --file [path] Path to the file that lists servers.  (Required)
     -p, --perf        Enable to monitor current performance.
-    -c, --cluster     Check available/unavailable node in a cluster.
-    -a, --auth        Take masterauth to get access to cluster. (Required if exists)
-    -t, --top         Represent Topology.
+    -c, --cluster     Check available/unavailable node in a cluster and its topology.
+    -a, --auth        Take masterauth to get access to cluster. (Required)
   "
 }
 
@@ -80,58 +79,79 @@ params(){
 
 }
 
-perf_check(){
-  for node in "$@"; do
-    #masterauth validation
-    if [[ -z $(redis-cli -h $node -a $MASTERAUTH ping 2> /dev/null) ]]; then
-      echo -e "
-  [ERROR] Invalid masterauth : (redacted)"
-      echo -e "  Program exists..."
-      exit 1
-    fi
-    UNAVAILABLE=$(redis-cli --cluster call "$node" info stats -a 1234 2>&1 > /dev/null)
-    AVAILABLE=$(redis-cli --cluster call "$node" info stats -a 1234 2> /dev/null | grep --perl-regexp '[0-9]{2,3}.[0-9]{2,3}.[0-9]{2,3}.[0-9]{2,3}:[0-9]{4,5}' --only-matching)
-    UNAVAILABLE=$(echo $UNAVAILABLE | grep --perl-regexp '[0-9]{2,3}.[0-9]{2,3}.[0-9]{2,3}.[0-9]{2,3}:[0-9]{4,5}' --only-matching)
-    if [ -z "$AVAILABLE" ]; then
-      continue
-    else
-      RETURN=$(echo '{ "available": "'"$AVAILABLE"'", "unavailable": "'$UNAVAILABLE'"}')
-      break
-    fi
-  done
-  if [[ -z "$RETURN" ]]; then
-     RETURN='{ "unavailable": "'"$@"'" }'
-  fi
-  echo $RETURN
-}
 
 
 health_check(){
-  UNAVAILABLE=()
-  AVAILABLE=()
+
+  AVAILABILITY=$(echo '{"available": [] , "unavailable":[]}')
   while [[ $# -gt 0 ]]; do
     PING=$(redis-cli -h $1 -p $2 -a $MASTERAUTH ping 2> /dev/null)
     if [[ -z $PING ]]; then
       echo -e "  [FAIL] Connection refused : $1:$2"
-      UNAVAILABLE+=("$1:$2")
+      IP_PORT="${1}:${2}"
+      AVAILABILITY=$(echo "$AVAILABILITY" | jq '.unavailable += ["'$IP_PORT'"]')
       shift
       shift
     else
-      echo -e "  [SUCCESS] Connection refused : $1:$2"
-      AVAILABLE+=("$1:$2")
+      IP_PORT="${1}:${2}"
+      echo -e "  [SUCCESS] Connected : $1:$2"
+      AVAILABILITY=$(echo "$AVAILABILITY" | jq '.available += ["'$IP_PORT'"]')
       shift
       shift
     fi
   done
 
-  #to show current topology 
-  for node in ${AVALIABLE[@]}; do
-    $(redis-cli -a $MASTERAUTH info replication 2> /dev/null | grep -E 'role|slave')
-  done
-    
-  echo '{"available": "'"${AVAILABLE[@]}"'", "unavailable":"'"${UNAVAILABLE[@]}"'"}' | jq 
+
+
   
+  AVAILABLE_INSTANCE=$(echo $AVAILABILITY | jq -r .available[0])
+  #To remove double quotes, it's necessary to put "-r" flag
+
+  #To prevent IO bottleneck
+  INFO=$(redis-cli --cluster call ${AVAILABLE_INSTANCE} info -a $MASTERAUTH 2> /dev/null | tr -d '\r')
+
+  #to show current topology 
+  master_num=1
+  slave_num=1
+  TOPOLOGY=($(redis-cli --cluster call ${AVAILABLE_INSTANCE} info replication -a $MASTERAUTH 2> /dev/null |  tr -d '\r' |  tr "\n" " "   |  grep -Po '[0-9]{2,3}.[0-9]{2,3}.[0-9]{2,3}.[0-9]{2,3}.[0-9]{4,5}: # Replication role:master|slave[0-9]:ip=[0-9]{2,3}.[0-9]{2,3}.[0-9]{2,3}.[0-9]{2,3},port=[0-9]{4,5},state=(online|offline)' |  awk '{gsub(": # Replication ", " ",$0);gsub(",port=",":",$0);print $0}' |  sed 's/role:master//'))
+  # ** tr -d '\r' ** is required to replace ^M that comes from window/dos
+
+  SHARDS=""
+  for node in ${TOPOLOGY[@]};do
+    if [[ $node =~ ^[0-9] ]];then
+      if [[ -n $shard ]]; then
+         SHARDS+=(${shard})
+      fi
+      slave_num=1
+      shard=$(echo '{"'shard_${master_num}'":{"master":"'$node'" }}')
+      shard_num=$master_num
+      ((master_num ++))
+    elif [[ $node =~ ^slave ]]; then
+
+      slave_ip=$(echo $node | grep -Po '\d+.\d+.\d+.\d+:\d+')
+      slave_status=$(echo $node |grep -Po '(online|offline)')
+      shard=$(echo $shard | jq '."'shard_${shard_num}'" += {"'slave_$slave_num'": {ip:"'$slave_ip'", status:"'$slave_status'"}}')
+      (( slave_num++ ))
+
+    fi
+
+  done
+  SHARDS+=($shard)
   }
+
+shard=$(echo '{"'shard_${master_num}'":{"master":"'$node'" }')
+shard=$(echo $shard | jq '."'shard_${master_num}'" += {"'slave_$slave_num'": "'$slave_ip'", "status":"'$slave_status'"}')
+
+
+perf_check(){
+  while [[ $# -gt 0 ]];do
+    INSTANCE=$1
+    COMMAND_PROCESSED_PER_SEC=$2
+    HIT_RATE=$(bc -l <<< $3/$4)
+
+  done
+
+}
   
 
 main(){
@@ -142,15 +162,24 @@ main(){
   SERVER_LIST=($(cat $FILE_PATH))
 
   #health check
+  PARSED_LIST=$(echo ${SERVER_LIST[@]} | awk '{gsub(":"," ",$0);print $0}')
+  health_check ${PARSED_LIST[@]}
   if [[ "$HEALTH_CHECK" == "true" ]];then
-    PARSED_LIST=$(echo ${SERVER_LIST[@]} | awk '{gsub(":"," ",$0);print $0}')
-    echo ${PARSED_LIST[@]}
-    health_check ${PARSED_LIST[@]}
+    echo $AVAILABILITY | jq
+    echo $SHARDS |jq
+    if [[ ${#SERVER_LIST[@]} == $(echo $AVAILABILITY | jq -r '.available | length') ]];then
+      echo '{"Cluster health" : "green"}' | jq
+    else
+      echo '{"Cluster health" : "red"}' | jq
+    fi
+
   fi
 
   #perf check
   if [[ "$PERF_CHECK" == "true" ]];then
-    perf_check ${SERVER_LIST[@]}
+    PERF=$(echo $INFO | grep -P "\d+.\d+.\d+.\d+:\d+|instantaneous_ops_per_sec:\d+|keyspace_\w+:\d+" -o)
+    perf_check ${PERF[@]}
+
   fi
 }
 
