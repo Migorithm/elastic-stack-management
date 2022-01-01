@@ -83,19 +83,19 @@ params(){
 
 health_check(){
 
-  AVAILABILITY=$(echo '{"available": [] , "unavailable":[]}')
+  AVAILABILITY='{"availability":{"available": [] , "unavailable":[]}}'
   while [[ $# -gt 0 ]]; do
     PING=$(redis-cli -h $1 -p $2 -a $MASTERAUTH ping 2> /dev/null)
     if [[ -z $PING ]]; then
       echo -e "  [FAIL] Connection refused : $1:$2"
       IP_PORT="${1}:${2}"
-      AVAILABILITY=$(echo "$AVAILABILITY" | jq '.unavailable += ["'$IP_PORT'"]')
+      AVAILABILITY=$(echo "$AVAILABILITY" | jq '.availability.unavailable += ["'"$IP_PORT"'"]')
       shift
       shift
     else
       IP_PORT="${1}:${2}"
       echo -e "  [SUCCESS] Connected : $1:$2"
-      AVAILABILITY=$(echo "$AVAILABILITY" | jq '.available += ["'$IP_PORT'"]')
+      AVAILABILITY=$(echo "$AVAILABILITY" | jq '.availability.available += ["'"$IP_PORT"'"]')
       shift
       shift
     fi
@@ -104,7 +104,7 @@ health_check(){
 
 
   
-  AVAILABLE_INSTANCE=$(echo $AVAILABILITY | jq -r .available[0])
+  AVAILABLE_INSTANCE=$(echo $AVAILABILITY | jq -r .availability.available[0])
   #To remove double quotes, it's necessary to put "-r" flag
 
   #To prevent IO bottleneck
@@ -116,11 +116,12 @@ health_check(){
   TOPOLOGY=($(redis-cli --cluster call ${AVAILABLE_INSTANCE} info replication -a $MASTERAUTH 2> /dev/null |  tr -d '\r' |  tr "\n" " "   |  grep -Po '[0-9]{2,3}.[0-9]{2,3}.[0-9]{2,3}.[0-9]{2,3}.[0-9]{4,5}: # Replication role:master|slave[0-9]:ip=[0-9]{2,3}.[0-9]{2,3}.[0-9]{2,3}.[0-9]{2,3},port=[0-9]{4,5},state=(online|offline)' |  awk '{gsub(": # Replication ", " ",$0);gsub(",port=",":",$0);print $0}' |  sed 's/role:master//'))
   # ** tr -d '\r' ** is required to replace ^M that comes from window/dos
 
-  SHARDS=""
+  SHARDS='{"topology":{}}'
   for node in ${TOPOLOGY[@]};do
     if [[ $node =~ ^[0-9] ]];then
       if [[ -n $shard ]]; then
-         SHARDS+=(${shard})
+        shard=$(echo $shard |jq -r)
+        SHARDS=$(echo $SHARDS | jq '.topology += '"$shard"'')
       fi
       slave_num=1
       shard=$(echo '{"'shard_${master_num}'":{"master":"'$node'" }}')
@@ -161,19 +162,25 @@ main(){
   #bring up a list of servers
   SERVER_LIST=($(cat $FILE_PATH))
 
-  #health check
   PARSED_LIST=$(echo ${SERVER_LIST[@]} | awk '{gsub(":"," ",$0);print $0}')
   health_check ${PARSED_LIST[@]}
+  #health check
   if [[ "$HEALTH_CHECK" == "true" ]];then
-    echo $AVAILABILITY | jq
-    echo $SHARDS |jq
-    if [[ ${#SERVER_LIST[@]} == $(echo $AVAILABILITY | jq -r '.available | length') ]];then
-      echo '{"Cluster health" : "green"}' | jq
+   if [[ ${#SERVER_LIST[@]} == $(echo $AVAILABILITY | jq -r '.available | length') ]] && [[ $(echo ${CLUSTER_INFO[@]} | grep -P "cluster_slots_assigned:\d+" -o | grep -Po "\d+") == "16384" ]];then
+         HEALTH=$(echo '{"Cluster health" : "green"}' | jq -r)
     else
-      echo '{"Cluster health" : "red"}' | jq
+            HEALTH=$(echo '{"Cluster health" : "red"}' | jq -r)
+
     fi
+    FARM='{"Farmname":"Redis_FarmA"}'
+    AVAILABILITY=$(echo $AVAILABILITY |jq -r)
+    TOPOLOGY_FIN=$(echo ${SHARDS[@]} |jq -r)
+    echo $FARM $combined $AVAILABILITY $TOPOLOGY_FIN $HEALTH | jq -r -s add
+
 
   fi
+ 
+
 
   #perf check
   if [[ "$PERF_CHECK" == "true" ]];then
