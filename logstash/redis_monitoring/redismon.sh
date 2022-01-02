@@ -6,8 +6,7 @@
 # 2.Cluster topology
 # 2.Performance
 #
-# Main idea is with this script, we'll be able to extract data in JSON format and send this to 
-# Logstash 
+# Main idea is with this script, we'll be able to extract data in JSON format and send this to Logstash 
 # Prerequisite: jq, redis-cli
 # 
 #
@@ -82,7 +81,6 @@ params(){
 
 
 health_check(){
-
   AVAILABILITY='{"availability":{"available": [] , "unavailable":[]}}'
   while [[ $# -gt 0 ]]; do
     PING=$(redis-cli -h $1 -p $2 -a $MASTERAUTH ping 2> /dev/null)
@@ -101,9 +99,6 @@ health_check(){
     fi
   done
 
-
-
-  
   AVAILABLE_INSTANCE=$(echo $AVAILABILITY | jq -r .availability.available[0])
   #To remove double quotes, it's necessary to put "-r" flag
 
