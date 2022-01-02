@@ -164,22 +164,25 @@ main(){
 
   PARSED_LIST=$(echo ${SERVER_LIST[@]} | awk '{gsub(":"," ",$0);print $0}')
   health_check ${PARSED_LIST[@]}
-  #health check
+
+  #health check based on slot assigned and available nodes
   if [[ "$HEALTH_CHECK" == "true" ]];then
-   if [[ ${#SERVER_LIST[@]} == $(echo $AVAILABILITY | jq -r '.available | length') ]] && [[ $(echo ${CLUSTER_INFO[@]} | grep -P "cluster_slots_assigned:\d+" -o | grep -Po "\d+") == "16384" ]];then
-         HEALTH=$(echo '{"Cluster health" : "green"}' | jq -r)
+    if [[ ${#SERVER_LIST[@]} == $(echo $AVAILABILITY | jq -r '.availability.available | length') ]] && [[ $(echo ${CLUSTER_INFO[@]} | grep -P "cluster_slots_assigned:\d+" -o | grep -Po "\d+") == "16384" ]];then
+      HEALTH=$(echo '{"Cluster health" : "green"}' | jq -r)
+
+    elif [[ ${#SERVER_LIST[@]} != $(echo $AVAILABILITY | jq -r '.availability.available | length') ]] && [[ $(echo ${CLUSTER_INFO[@]} | grep -P "cluster_slots_assigned:\d+" -o | grep -Po "\d+") == "16384" ]];then
+      HEALTH=$(echo '{"Cluster health" : "yellow"}' | jq -r)
     else
-            HEALTH=$(echo '{"Cluster health" : "red"}' | jq -r)
+      HEALTH=$(echo '{"Cluster health" : "red"}' | jq -r)
 
     fi
     FARM='{"Farmname":"Redis_FarmA"}'
     AVAILABILITY=$(echo $AVAILABILITY |jq -r)
     TOPOLOGY_FIN=$(echo ${SHARDS[@]} |jq -r)
     echo $FARM $combined $AVAILABILITY $TOPOLOGY_FIN $HEALTH | jq -r -s add
-
-
   fi
- 
+
+
 
 
   #perf check
