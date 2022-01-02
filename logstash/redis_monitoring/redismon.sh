@@ -90,14 +90,14 @@ health_check(){
       echo -e "  [FAIL] Connection refused : $1:$2"
       IP_PORT="${1}:${2}"
       AVAILABILITY=$(echo "$AVAILABILITY" | jq '.availability.unavailable += ["'"$IP_PORT"'"]')
-      shift
-      shift
+      shift 2
+  
     else
       IP_PORT="${1}:${2}"
       echo -e "  [SUCCESS] Connected : $1:$2"
       AVAILABILITY=$(echo "$AVAILABILITY" | jq '.availability.available += ["'"$IP_PORT"'"]')
-      shift
-      shift
+      shift 2
+
     fi
   done
 
@@ -109,6 +109,7 @@ health_check(){
 
   #To prevent IO bottleneck
   INFO=$(redis-cli --cluster call ${AVAILABLE_INSTANCE} info -a $MASTERAUTH 2> /dev/null | tr -d '\r')
+  CLUSTER_INFO=$(redis-cli -h $(echo $AVAILABLE_INSTANCE | cut -d ":" -f 1) -p $(echo $AVAILABLE_INSTANCE | cut -d ":" -f 2) -a $MASTERAUTH cluster info 2> /dev/null | tr -d '\r')
 
   #to show current topology 
   master_num=1
@@ -137,20 +138,26 @@ health_check(){
     fi
 
   done
-  SHARDS+=($shard)
-  }
-
-shard=$(echo '{"'shard_${master_num}'":{"master":"'$node'" }')
-shard=$(echo $shard | jq '."'shard_${master_num}'" += {"'slave_$slave_num'": "'$slave_ip'", "status":"'$slave_status'"}')
+  SHARDS=$(echo $SHARDS | jq '.topology += '"$shard"'')
+}
 
 
 perf_check(){
+  PERFORMANCE='{"performance":{"instances":[]}}'
   while [[ $# -gt 0 ]];do
     INSTANCE=$1
-    COMMAND_PROCESSED_PER_SEC=$2
-    HIT_RATE=$(bc -l <<< $3/$4)
-
+    COMMAND_PROCESSED_PER_SEC=$(echo $2 | grep -Po "\d+")
+    KEYSPACE_HITS=$(echo $3|grep -Po "\d+")
+    KEYSPACE_MISSED=$(echo $4|grep -Po "\d+")
+    if [[ $(( $KEYSPACE_HITS + $KEYSPACE_MISSED )) != "0" ]]; then
+        HIT_RATE=$(bc -l <<< "scale=3; $KEYSPACE_HITS/(($KEYSPACE_HITS + $KEYSPACE_MISSED))")
+    else
+        HIT_RATE=0
+    fi
+    PERFORMANCE=$(echo $PERFORMANCE | jq '.performance.instances += [{ip:"'$INSTANCE'",command_processed_per_sec: "'$COMMAND_PROCESSED_PER_SEC'", hit_rate:"'$HIT_RATE'"}]')
+    shift 4
   done
+
 
 }
   
@@ -189,6 +196,7 @@ main(){
   if [[ "$PERF_CHECK" == "true" ]];then
     PERF=$(echo $INFO | grep -P "\d+.\d+.\d+.\d+:\d+|instantaneous_ops_per_sec:\d+|keyspace_\w+:\d+" -o)
     perf_check ${PERF[@]}
+    echo $PERFORMANCE | jq
 
   fi
 }
