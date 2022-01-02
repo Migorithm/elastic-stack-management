@@ -143,7 +143,7 @@ health_check(){
 
 
 perf_check(){
-  PERFORMANCE='{"performance":{"instances":[]}}'
+
   while [[ $# -gt 0 ]];do
     INSTANCE=$1
     COMMAND_PROCESSED_PER_SEC=$(echo $2 | grep -Po "\d+")
@@ -154,11 +154,23 @@ perf_check(){
     else
         HIT_RATE=0
     fi
-    PERFORMANCE=$(echo $PERFORMANCE | jq '.performance.instances += [{ip:"'$INSTANCE'",command_processed_per_sec: "'$COMMAND_PROCESSED_PER_SEC'", hit_rate:"'$HIT_RATE'"}]')
+    MON_PER_INSTANCE=$(echo $MON_PER_INSTANCE | jq '.instances += {"'$INSTANCE'":{performance :{ command_processed_per_sec: "'$COMMAND_PROCESSED_PER_SEC'", hit_rate:"'$HIT_RATE'"}}}')
     shift 4
   done
 
-
+}
+memory_check(){
+  while [[ $# -gt 0 ]]; do
+  INSTANCE=$1
+  USED_MEMORY=$(echo $2 | grep -P "\d+" -o)
+  TOTAL_SYSTEM_MEMORY=$(echo $3 |grep -P "\d+" -o)
+  MEMORY_USAGE_RATE=$(bc -l <<< "scale=3; $USED_MEMORY/$TOTAL_SYSTEM_MEMORY")
+  MEM_FRAGMENTATION_RATIO=$(echo $4 | grep -P "\d+.\d+" -o)
+  EVICTED_KEYS=$(echo $5 |grep -P "\d+" -o)
+  MON_PER_INSTANCE=$(echo $MON_PER_INSTANCE | jq '.instances."'$INSTANCE'" += {memory_metrics :{ memory_usage_rate: "'$MEMORY_USAGE_RATE'", mem_fragmentation_ratio: "'$MEM_FRAGMENTATION_RATIO'",evicted_keys:"'$EVICTED_KEYS'"}}')
+  shift 5
+  done
+  
 }
   
 
@@ -183,7 +195,7 @@ main(){
       HEALTH=$(echo '{"Cluster health" : "red"}' | jq -r)
 
     fi
-    FARM='{"Farmname":"Redis_FarmA"}'
+    FARM='{"UseCase":"RedisFarmX"}'
     AVAILABILITY=$(echo $AVAILABILITY |jq -r)
     TOPOLOGY_FIN=$(echo ${SHARDS[@]} |jq -r)
     echo $FARM $combined $AVAILABILITY $TOPOLOGY_FIN $HEALTH | jq -r -s add
@@ -192,11 +204,16 @@ main(){
 
 
 
-  #perf check
+  #Monitoring
   if [[ "$PERF_CHECK" == "true" ]];then
+    MON_PER_INSTANCE='{"UseCase":"RedisFarmX","instances":{}}'
     PERF=$(echo $INFO | grep -P "\d+.\d+.\d+.\d+:\d+|instantaneous_ops_per_sec:\d+|keyspace_\w+:\d+" -o)
     perf_check ${PERF[@]}
-    echo $PERFORMANCE | jq
+  
+
+    MEMORY=$(echo $INFO | grep -P '\d+.\d+.\d+.\d+:\d+|mem_fragmentation_ratio:\d+.\d+|used_memory:\d+|total_system_memory:\d+|evicted_keys:\d+' -o )
+    memory_check ${MEMORY[@]}
+    echo $MON_PER_INSTANCE | jq
 
   fi
 }
