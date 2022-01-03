@@ -24,9 +24,20 @@ help(){
 }
 
 params(){
+  
   if [[ "$#" -eq 0 ]];then
     help
     exit 1
+  elif [[ -z $(echo "$@" | grep "\-a") ]];then
+  echo -e "
+  [ERROR] Masterauth must be given."
+          help
+          exit 1
+  elif [[ -z $(echo "$@" | grep "\-f") ]];then
+  echo -e "
+  [ERROR] File path must be given."
+          help
+          exit 1
   else 
     while [[ $# -gt 0 ]]; do
       if [[ "${1,,}" == "-f" ]] || [[ "${1,,}" == "--file" ]]; then
@@ -65,6 +76,11 @@ params(){
         MASTERAUTH=$1
         if [[ $MASTERAUTH =~ ^[-] ]]; then
           echo -e "[ERROR] Invalid auth."
+          help
+          exit 1
+        elif [[ -z $MASTERAUTH ]]; then 
+        echo -e "
+  [ERROR] Masterauth must be given."
           help
           exit 1
         fi
