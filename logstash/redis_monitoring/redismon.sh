@@ -28,12 +28,12 @@ params(){
   if [[ "$#" -eq 0 ]];then
     help
     exit 1
-  elif [[ -z $(echo "$@" | grep "\-a") ]];then
+  elif [[ -z $(echo "$@" | grep "\-a\|\-\-auth") ]];then
   echo -e "
   [ERROR] Masterauth must be given."
           help
           exit 1
-  elif [[ -z $(echo "$@" | grep "\-f") ]];then
+  elif [[ -z $(echo "$@" | grep "\-f\|\-\-file") ]];then
   echo -e "
   [ERROR] File path must be given."
           help

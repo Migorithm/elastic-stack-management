@@ -103,22 +103,20 @@ params(){
 }
 
 latency_check(){
-  CLUSTER='{"instances": {}}'
+  CLUSTER='{"message": []}'
   while [[ $# -gt 0 ]];do
     INSTANCE=$1
-    DATETIME=$(date -d @${2}) 
+    #DATETIME=$(date -d @${2})  if you want this to represent localtime in human readable form
+    DATETIME=$2
     MAX_LATENCY_FOR_COMMAND=$4
     FREQUENCY=$(echo $(($(redis-cli -h $(echo $INSTANCE | cut -d ":" -f 1) -p $(echo $INSTANCE | cut -d ":" -f 2) -a $MASTERAUTH latency history $COMMAND 2> /dev/null |wc -l ) /2)) )
-    CLUSTER=$(echo $CLUSTER | jq '.instances."'$INSTANCE'" += {datetime:"'"$DATETIME"'", latency: "'"$MAX_LATENCY_FOR_COMMAND"'", frequency: "'"$FREQUENCY"'"}')
+    CLUSTER=$(echo $CLUSTER | jq '.message += [{ip:"'"$INSTANCE"'",datetime:"'"$DATETIME"'", latency: "'"$MAX_LATENCY_FOR_COMMAND"'", frequency: "'"$FREQUENCY"'"}]')
     shift 4
   done
   echo $CLUSTER | jq 
 
 #Lastly, we need to flush them out
 }
-
-
-
 
 
 get_available_node(){
@@ -138,7 +136,7 @@ get_available_node(){
   [ERROR] Available node not found."
   else
     LATENCY_LATEST=$(redis-cli --cluster call $AVAILABLE_NODE latency latest -a $MASTERAUTH 2> /dev/null | grep -v "latency latest")
-    COMMAND_LATENCY=($(echo $LATENCY_LATEST | grep -Po "\d+.\d+.\d+.\d+:\d+: '$COMMAND' \d+ \d+ \d+" | awk '{gsub(": '$COMMAND'","",$0);print $0}'))
+    COMMAND_LATENCY=($(echo $LATENCY_LATEST | grep -Po "\d+.\d+.\d+.\d+:\d+: $COMMAND \d+ \d+ \d+" | awk '{gsub(": '$COMMAND'","",$0);print $0}'))
     latency_check ${COMMAND_LATENCY[@]}
     fi
 }
