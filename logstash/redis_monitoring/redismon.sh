@@ -197,10 +197,10 @@ main(){
 
   #health check based on slot assigned and available nodes
   if [[ "$HEALTH_CHECK" == "true" ]];then
-    if [[ ${#SERVER_LIST[@]} == $(echo $AVAILABILITY | jq -r '.availability.available | length') ]] && [[ $(echo ${CLUSTER_INFO[@]} | grep -P "cluster_slots_assigned:\d+" -o | grep -Po "\d+") == "16384" ]];then
+    if [[ ${#SERVER_LIST[@]} == $(echo $AVAILABILITY | jq -r '.availability.available | length') ]] && [[ $(echo ${CLUSTER_INFO[@]} | grep -P "cluster_slots_fail:\d+" -o | grep -Po "\d+") == "0" ]];then
       HEALTH=$(echo '{"Cluster health" : "green"}' | jq -r)
 
-    elif [[ ${#SERVER_LIST[@]} != $(echo $AVAILABILITY | jq -r '.availability.available | length') ]] && [[ $(echo ${CLUSTER_INFO[@]} | grep -P "cluster_slots_assigned:\d+" -o | grep -Po "\d+") == "16384" ]];then
+    elif [[ ${#SERVER_LIST[@]} != $(echo $AVAILABILITY | jq -r '.availability.available | length') ]] && [[ $(echo ${CLUSTER_INFO[@]} | grep -P "cluster_slots_fail:\d+" -o | grep -Po "\d+") == "0" ]];then
       HEALTH=$(echo '{"Cluster health" : "yellow"}' | jq -r)
     else
       HEALTH=$(echo '{"Cluster health" : "red"}' | jq -r)

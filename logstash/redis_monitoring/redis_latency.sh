@@ -103,14 +103,15 @@ params(){
 }
 
 latency_check(){
-  CLUSTER='{"message": []}'
+  CLUSTER='[]' 
+  #turns out, when we send JSON data contained in an array, it sequentially inputs them into ES.
   while [[ $# -gt 0 ]];do
     INSTANCE=$1
     #DATETIME=$(date -d @${2})  if you want this to represent localtime in human readable form
     DATETIME=$2
     MAX_LATENCY_FOR_COMMAND=$4
     FREQUENCY=$(echo $(($(redis-cli -h $(echo $INSTANCE | cut -d ":" -f 1) -p $(echo $INSTANCE | cut -d ":" -f 2) -a $MASTERAUTH latency history $COMMAND 2> /dev/null |wc -l ) /2)) )
-    CLUSTER=$(echo $CLUSTER | jq '.message += [{ip:"'"$INSTANCE"'",datetime:"'"$DATETIME"'", latency: "'"$MAX_LATENCY_FOR_COMMAND"'", frequency: "'"$FREQUENCY"'"}]')
+    CLUSTER=$(echo $CLUSTER | jq '. += [{ip:"'"$INSTANCE"'",datetime:"'"$DATETIME"'", latency: "'"$MAX_LATENCY_FOR_COMMAND"'", frequency: "'"$FREQUENCY"'"}]')
     shift 4
   done
   echo $CLUSTER | jq 
