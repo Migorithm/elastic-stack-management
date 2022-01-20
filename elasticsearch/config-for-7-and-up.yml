@@ -1,0 +1,29 @@
+################################################################################################################################################
+# Mandatory directive will be written, uncommented whereas option directive will be written commented.
+#
+################################################################################################################################################
+
+cluster.name: {cluster_name}
+node.name: {node_name}
+node.roles: [ data, master, ingest ]
+path.data: /var/lib/elasticsearch
+path.logs: /var/log/elasticsearch
+bootstrap.memory_lock: true  
+
+#Applying the bootstrap.memory_lock: true may error out saying 
+#    [1] bootstrap checks failed. You must address the points described in the following [1] lines before starting Elasticsearch.
+#    bootstrap check failure [1] of [1]: memory locking requested for elasticsearch process but memory is not locked
+#To solve this, you have to edit systemd file by doing the following:
+#
+#sudo systemctl edit elasticsearch.service
+#[Service]
+#LimitMEMLOCK=infinity
+
+network.host: {hostname -I}
+#http.port: 9200
+http.cors.enabled: true #This is to allow other browser to have an access to Elasticseaech
+http.cors.allow-origin: "*" 
+
+transport.port: 9300
+discovery.seed_hosts: ["node_ip1","node_ip2","node_ip3"]
+cluster.initial_master_nodes: ["node_name1","node_name2"]  #This is for first master election. Could be just one.
