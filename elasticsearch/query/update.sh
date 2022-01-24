@@ -43,15 +43,15 @@ curl -H "Content-Type: application/json" -XPOST localhost:9200/movies/_update/2 
 
 
 #Add new field into a source.
-curl -H "Content-Type application/json" -XPOST localhost:9200/movies/_update/2 -d '
+curl -H "Content-Type: application/json" -XPOST localhost:9200/movies/_update/2 -d '
 {
     "script" :{
-        "source" : "ctx._source.new_field = 'value of new field'"
+        "source" : "ctx._source.new_field = '"'value of new field'"'"
     }
 }'
 
 #Remove the field 
-curl -H "Content-Type application/json" -XPOST localhost:9200/movies/_update/2 -d '
+curl -H "Content-Type: application/json" -XPOST localhost:9200/movies/_update/2 -d '
 {
     "script" :{
         "source" : "ctx._source.remove('"'new_field'"')"
@@ -59,7 +59,7 @@ curl -H "Content-Type application/json" -XPOST localhost:9200/movies/_update/2 -
 }'
 
 #remove "subfield" from the 'my-object' field.
-curl -H "Content-Type application/json" -XPOST localhost:9200/movies/_update/2 -d '
+curl -H "Content-Type: application/json" -XPOST localhost:9200/movies/_update/2 -d '
 {
     "script":{
         "source":"ctx._source['"'my-object'"'].remove('"'my-subfield'"')"
@@ -68,7 +68,7 @@ curl -H "Content-Type application/json" -XPOST localhost:9200/movies/_update/2 -
 
 
 #change operation (for example, updating to deleting depending on condition)
-curl -H "Content-Type application/json" -XPOST localhost:9200/movies/_update/2 -d '
+curl -H "Content-Type: application/json" -XPOST localhost:9200/movies/_update/2 -d '
 {
     "script":{
         "source":"if (ctx._source.contain(params.tag)){ctx.op='"'delete'"'} else {ctx.op='"'none'"'}",
@@ -82,7 +82,7 @@ curl -H "Content-Type application/json" -XPOST localhost:9200/movies/_update/2 -
 
 #Upsert  - if the document doesn't already exists, the contents of the upsert element are inserted as a new document. 
 #        - if exists, the script is executed
-curl -H "Content-Type application/json" -XPOST localhost:9200/movies/_update/3 -d '
+curl -H "Content-Type: application/json" -XPOST localhost:9200/movies/_update/3 -d '
 { 
     "script":{
         "source": "ctx._source.counter += params.count",
@@ -97,7 +97,7 @@ curl -H "Content-Type application/json" -XPOST localhost:9200/movies/_update/3 -
 }'
 
 #scripted upsert    - run the script whether or not document exists. Set `script_upsert` to true
-curl -H "Content-Type application/json" -XPOST localhost:9200/movies/_update/2 -d '
+curl -H "Content-Type: application/json" -XPOST localhost:9200/movies/_update/2 -d '
 {
     "script_upsert":true,
     "script": {
@@ -120,7 +120,7 @@ curl -H "Content-Type application/json" -XPOST localhost:9200/movies/_update/2 -
 #Update by Query API
 
 #Syntax
-curl -H "Content-Type application/json" -XPOST localhost:9200/index_name/_update_by_query?conflict=proceed -d '
+curl -H "Content-Type: application/json" -XPOST localhost:9200/index_name/_update_by_query?conflict=proceed -d '
 {
   "query":{
       "match":{
@@ -134,7 +134,18 @@ curl -H "Content-Type application/json" -XPOST localhost:9200/index_name/_update
 }'  #If conflict=proceed is not specified, a version conflict should halt the process so you can handle the failure.
 
 
-https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update-by-query.html
+#Also possible to do issue a query on multiple indexes and multiple types at once, just like the search API:
+curl -H "Content-Type: application/json" -XPOST localhost:9200/indexA,indexB/_update_by_query/conflict=proceed -d '
+{
+    "query":{
+        "term":{
+            "year":1991
+        }
+    },
+    "script":{
+        "source":"ctx.source.tag" = '"'when I was born'"',
+        "lang":"painless"
+    }
 
-
+}
 
