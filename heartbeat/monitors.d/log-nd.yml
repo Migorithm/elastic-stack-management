@@ -1,0 +1,48 @@
+#id vs name
+# with multiple hosts specified, id will be followed by some additional info whereas
+# name will be fixed value, therefore easier to understand for human.
+
+- id: elasticsearch-node-health
+  name: elasticsearch-log-nd
+  type: tcp
+  hosts: 
+    - "IP1"
+    - "IP2"
+    - "IP3"
+    - "IP4"
+    - "IP5"
+  ports: [9200]
+  schedule: '@every 10s'
+
+- id: elasticsearch-cluster-health
+  name: elasticsearch-log-cluster
+  type: http
+  urls: ["http://IP1:9200/_cluster/health"]
+
+
+- id: elasticsearch-cluster-health
+  name: elasticsearch_servicename
+  type: http
+  urls: ["http://elasticIP1:9200/_cluster/health","http://elasticIP2:9200/_cluster/health"]
+  schedule: '@every 10s'
+  username: 'id'
+  password: 'password'
+  check.request: 
+    #For method, only 'GET', 'POST' and 'HEAT' are allowed. 
+    method: GET
+  check.response:
+    #Expected status code. If not configured or set to 0 any status code not being 404 is accepted
+    status: 200
+
+    #parse the body as JSON then checks against the given condition expression
+    json:
+      - description: check status
+        expression: 'status == "green" && active_shards_percent_as_number == 100' #this uses gval expression -- string must be quoted
+
+    ##6.8 and lower 
+      # condition:
+      #   not:
+      #     equals:
+      #       status: red
+
+  

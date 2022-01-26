@@ -1,0 +1,21 @@
+- id: redis-farm0
+  type: tcp
+  hosts: ["IP1","IP2","IP3"]
+  ports: [6379]
+  name: farm0
+  schedule: '@every 10s'
+
+- id: redis-farmA
+  type: tcp
+  hosts: ["IP1","IP2","IP3"]
+  ports: [6379]
+  name: farmA
+  schedule: '@every 10s'
+  
+- id: redis-farmB
+  type: tcp
+  hosts: ["IP1","IP2","IP3"]
+  ports: [6379]
+  name: farmB
+  schedule: '@every 10s'
+  

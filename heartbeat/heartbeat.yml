@@ -15,10 +15,6 @@ setup.template.settings:
   # Protocol - either `http` (default) or `https`.
   #protocol: "https"
 
-  # Authentication credentials - either API key or username/password.
-  #api_key: "id:api_key"
-  #username: "elastic"
-  #password: "changeme"
 
 
 # ================================== Outputs ===================================
@@ -27,3 +23,8 @@ setup.template.settings:
 output.elasticsearch:
   # Array of hosts to connect to.
   hosts: ["10.107.11.59:9200"]
+  
+  # Authentication credentials - either API key or username/password.
+  #api_key: "id:api_key"
+  #username: "elastic"
+  #password: "changeme"

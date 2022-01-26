@@ -58,25 +58,27 @@ curl -XPUT localhost:9200/_template/template_name -H "Content-Type: application/
 #another example
 curl -XPUT localhost:9200/_ilm/policy/policy_name -H "Content-Type: application/json" -d '
 {
-  "policy" : {
-   // Even if you don not wanna use hot node setting, configuring hot node is requisite. In that case, you do the following setting. 
-    "hot" : {
-      "min_age" : "0ms",
-      "actions" : {
-        "set_priority" : {
-          "priority" : 100
+  "policy":{
+    "phases":{
+// Even if you don not wanna use hot node setting, configuring hot node is requisite. In that case, you do the following setting. 
+      "hot":{
+        "min_age":"0m",
+        "actions":{
+          "set_priority": {
+            "priority": null
+          } 
         }
-      }
-    },
-   // By using delete setting, you can manage lifesycle.
-    "delete" : {
-      "min_age" : "{how long this index will exist -- 90d, 1h...}",
-      "actions" : {
-        "delete" : { }
+      },
+      "delete":{
+        "min_age":"{how long this index will exist -- 90d, 1h...}",
+        "actions":{
+          "delete":{}
+        }
       }
     }
   }
-}'
+}
+'
 
 curl -XPUT localhost:9200/_template/template_name -H "Content-Type: application/json" -d '
 { 
