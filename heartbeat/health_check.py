@@ -2,6 +2,7 @@ import json
 from elasticsearch import Elasticsearch
 import requests
 import json
+from pathos.multiprocessing import ProcessingPool as Pool
 
 
 load_json=json.load(open("./telekey.json"))
@@ -50,12 +51,14 @@ body={
 }
 
 def connector():
-    es= Elasticsearch(["IP1","IP2"],sniff_on_connection_fail=True,sniffer_timeout=30,http_auth=("<id>","<password>"))
+    es= Elasticsearch(["IP1:PORT","IP2:PORT"],sniff_on_connection_fail=True,sniffer_timeout=30,http_auth=("<id>","<password>"))
     return es
 
 def parser(connector):
+    global NCORE
     #list_of_services
     service_list=connector.search(index=index_name,body=body,size=0)["aggregations"]["service"]["buckets"]
+    NCORE= len(service_dict)
     for service in service_list:
         service_dict={"service":"","hosts":[]}
         service_name = service["key"]
@@ -70,14 +73,15 @@ def parser(connector):
     #return list_of_services
         #it should be in a form of, for example {"service":"elasticsearch","hosts":[{"ip":"IP1","status":"up"}]}
 
-def alarm():
+def alarm(service):
     message={"text":""}
-    for service in parser(connector()):
-        for host in service["hosts"]:
-            if host["status"] != "up" :
-                message["text"]=f"[ERROR] {service['service']} instance {host['ip']} down!"
-                requests.post(telegram_url,message)
+    for host in service["hosts"]:
+        if host["status"] != "up" :
+            message["text"]=f"[ERROR] {service['service']} instance {host['ip']} down!"
+            requests.post(telegram_url,message)
 
 if __name__ == "__main__":
-    alarm()
+    with Pool(NCORE) as executor:
+      executor.map(alarm,parser(connector()))
     
+
