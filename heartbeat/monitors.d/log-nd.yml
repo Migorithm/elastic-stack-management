@@ -23,7 +23,7 @@
 - id: elasticsearch-cluster-health
   name: elasticsearch_servicename
   type: http
-  urls: ["http://elasticIP1:9200/_cluster/health","http://elasticIP2:9200/_cluster/health"]
+  urls: ["http://elasticIP1:9200/","http://elasticIP2:9200/_cluster/health"]
   schedule: '@every 10s'
   username: 'id'
   password: 'password'

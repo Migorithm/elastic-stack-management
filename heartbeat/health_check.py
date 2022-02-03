@@ -58,7 +58,7 @@ def parser(connector):
     global NCORE
     #list_of_services
     service_list=connector.search(index=index_name,body=body,size=0)["aggregations"]["service"]["buckets"]
-    NCORE= len(service_dict)
+    NCORE= len(service_list)
     for service in service_list:
         service_dict={"service":"","hosts":[]}
         service_name = service["key"]

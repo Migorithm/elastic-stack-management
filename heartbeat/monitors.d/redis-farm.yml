@@ -2,6 +2,8 @@
   type: tcp
   hosts: ["IP1","IP2","IP3"]
   ports: [6379]
+  check.send: "auth {Authentication}\r\nping\r\n" 
+  check.receive: "+OK\r\n+PONG\r\n"
   name: farm0
   schedule: '@every 10s'
 
@@ -9,6 +11,8 @@
   type: tcp
   hosts: ["IP1","IP2","IP3"]
   ports: [6379]
+  check.send: "auth {Authentication}\r\nping\r\n"
+  check.receive: "+OK\r\n+PONG\r\n"
   name: farmA
   schedule: '@every 10s'
   
@@ -16,6 +20,8 @@
   type: tcp
   hosts: ["IP1","IP2","IP3"]
   ports: [6379]
+  check.send: "auth {Authentication}\r\nping\r\n"
+  check.receive: "+OK\r\n+PONG\r\n"
   name: farmB
   schedule: '@every 10s'
   
