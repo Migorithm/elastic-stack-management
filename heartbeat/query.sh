@@ -18,6 +18,22 @@ mappings_for_heart_beat = {
 	}
 }
 
+PUT _template/heartbeat-template #6.8version
+{ 
+  "index_patterns":["heartbeat-*"],
+  "settings":{
+    "index.lifecycle.name":"liveprobe"
+  },
+  "mappings":{
+    "_doc":{
+    "properties":{
+      "monitor.ip":{"type":"keyword"},
+      "monitor.name":{"type":"keyword"},
+      "monitor.status":{"type":"keyword"}
+      }
+    }
+  }
+}
 
 query_for_heart_beat={
 	"aggs":{
@@ -28,7 +44,8 @@ query_for_heart_beat={
 			"aggs":{
 				"ip":{
 					"terms":{
-						"field":"monitor.ip"
+						"field":"monitor.ip",
+						"size":1000
 					},
 					"aggs":{
 						"status":{

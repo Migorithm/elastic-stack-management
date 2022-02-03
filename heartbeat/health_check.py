@@ -21,6 +21,7 @@ body={
 			"aggs":{
 				"ip":{
 					"terms":{
+            "size":1000,
 						"field":"monitor.ip"
 					},
 					"aggs":{

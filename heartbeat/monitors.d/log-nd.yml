@@ -2,24 +2,6 @@
 # with multiple hosts specified, id will be followed by some additional info whereas
 # name will be fixed value, therefore easier to understand for human.
 
-- id: elasticsearch-node-health
-  name: elasticsearch-log-nd
-  type: tcp
-  hosts: 
-    - "IP1"
-    - "IP2"
-    - "IP3"
-    - "IP4"
-    - "IP5"
-  ports: [9200]
-  schedule: '@every 10s'
-
-- id: elasticsearch-cluster-health
-  name: elasticsearch-log-cluster
-  type: http
-  urls: ["http://IP1:9200/_cluster/health"]
-
-
 - id: elasticsearch-cluster-health
   name: elasticsearch_servicename
   type: http
@@ -45,4 +27,26 @@
       #     equals:
       #       status: red
 
+
+- id: elasticsearch-node-health-log
+  name: elasticsearch-log-nd
+  type: http
+  urls: 
+    - "http://IP1:9200"
+    - "http://IP2:9200"
+    - "http://IP3:9200"
+    - "http://IP4:9200"
+    - "http://IP5:9200"
+  schedule: '@every 10s'
+  username: 'id'
+  password: 'password'
+  check.request: 
+    method: GET
+  check.response:
+    status: 200
+    json:
+      - description: node health check
+        condition:
+          equals:
+            tagline: "You Know, for Search"
   
