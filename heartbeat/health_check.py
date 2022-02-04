@@ -3,6 +3,7 @@ from elasticsearch import Elasticsearch
 import requests
 import json
 from pathos.multiprocessing import ProcessingPool as Pool
+import os 
 
 
 load_json=json.load(open("./telekey.json"))
@@ -59,7 +60,7 @@ def parser(connector):
     global NCORE
     #list_of_services
     service_list=connector.search(index=index_name,body=body,size=0)["aggregations"]["service"]["buckets"]
-    NCORE= len(service_list)
+    NCORE= min(len(service_list),os.cpu_count())
     for service in service_list:
         service_dict={"service":"","hosts":[]}
         service_name = service["key"]
@@ -78,7 +79,7 @@ def alarm(service):
     message={"text":""}
     for host in service["hosts"]:
         if host["status"] != "up" :
-            message["text"]=f"[ERROR] {service['service']} instance {host['ip']} down!"
+            message["text"]=f"[ERROR] {service['service']} -- instance {host['ip']} down!"
             requests.post(telegram_url,message)
 
 if __name__ == "__main__":
@@ -86,3 +87,5 @@ if __name__ == "__main__":
       executor.map(alarm,parser(connector()))
     
 
+#backlog job::
+    #Alarm shutdown on specific service
