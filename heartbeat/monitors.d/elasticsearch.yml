@@ -28,8 +28,9 @@
       #       status: red
 
 
-- id: elasticsearch-node-health-log
-  name: elasticsearch-log-nd
+#http
+- id: elasticsearch-nd
+  name: elasticsearch-nd
   type: http
   urls: 
     - "http://IP1:9200"
@@ -49,4 +50,26 @@
         condition:
           equals:
             tagline: "You Know, for Search"
-  
+
+#https
+- id: elasticsearch-nd-https
+  name: elasticsearch-nd-https
+  type: http
+  urls: 
+    - "https://IP1:9200"
+    - "https://IP2:9200"
+    - "https://IP3:9200"
+    - "https://IP4:9200"
+    - "https://IP5:9200"
+  schedule: '@every 10s'
+  username: 'id'
+  password: 'password'
+  ssl:
+    verification_mode: 'none'
+  check.request: 
+    method: GET
+  check.response:
+    status: 200
+    json:
+      - description: node health check
+        expression: 'tagline == "You Know, for Search"'
