@@ -7,3 +7,4 @@ You want to expect things related ELK that include:<br>
 - Kibana
 - Filebeat 
 - Metricbeat  
+- Monitoring a fleet of servers, using Heartbeat

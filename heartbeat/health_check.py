@@ -96,6 +96,12 @@ def alarm(service):
 
 if __name__ == "__main__":
     while True :
-        with Pool(NCORE) as executor:
-            executor.map(alarm,parser(connector()))
-        time.sleep(60)
+        con = connector()
+        if con:
+            with Pool(NCORE) as executor:
+                executor.map(alarm,parser(con))
+            time.sleep(60)
+        else:
+            #In case ES server storing heartbeat data doesn't work
+            message = {"text":f"[ERROR] Connection to Monitoring Server Failed"}
+            requests.post(telegram_url,message)
