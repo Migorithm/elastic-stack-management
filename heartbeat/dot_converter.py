@@ -9,4 +9,4 @@ class Dot(object):
             #wrap it with list of 
             return type(value)([self._wrap(v) for v in value])
         else:
-            return Struct(value) if isinstance(value, dict) else value
+            return Dot(value) if isinstance(value, dict) else value
