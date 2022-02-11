@@ -86,20 +86,28 @@ def connector():
 def parser(connector):
     #list_of_services 
     service_list=Dot(connector.search(index=index_name,body=body,size=0)).aggregations.service.buckets
-    for service in service_list:
-        service_dict={"service":service["key"],"hosts":[]}
-        for ip in service.ip.buckets:
-            service_dict["hosts"].append({"ip":ip.key})
-        yield service_dict
+    
+    #validation
+    if service_list:
+        for service in service_list:
+            service_dict={"service":service.key,"hosts":[]}
+            for ip in service.ip.buckets:
+                service_dict["hosts"].append({"ip":ip.key})
+            yield service_dict
+    else:
+        return None
 
 def alarm(service):
-    message={"text":""}
-    for host in service["hosts"]:
-        message["text"]=f"[ERROR] {service['service']} -- instance {host['ip']} down!"
-        requests.post(telegram_url,message)
-        #Logging locally.
-        logger().warning(f"[HealthCheck] [{host['ip']}] from -- {service['service']} -- DOWN.")
-
+    if service:
+        message={"text":""}
+        for host in service["hosts"]:
+            message["text"]=f"[ERROR] {service['service']} -- instance {host['ip']} down!"
+            requests.post(telegram_url,message)
+            #Logging locally.
+            logger().warning(f"[HealthCheck] [{host['ip']}] from -- {service['service']} -- DOWN.")
+    else:
+        return None
+        
 if __name__ == "__main__":
     while True :
         con = connector()

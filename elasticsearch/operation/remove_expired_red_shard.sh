@@ -24,7 +24,7 @@ done
 
 red_shards(){
     #Shard health check
-    RED_SHARDS=($(curl --silent -XGET "$ES_SERVER/_cat/shards?h=index,shard,prirep,state,node" -H "Content-Type:application/json" | awk '{if ($3=="p" && $4=="UNASSIGNED") print $1}'))
+    RED_SHARDS=($(curl --silent -XGET "$ES_SERVER/_cat/shards?h=index,shard,prirep,state,nodSS4e" -H "Content-Type:application/json" | awk '{if ($3=="p" && $4=="UNASSIGNED") print $1}'))
 }
 
 # Validating the URL and DB names inputs
@@ -36,8 +36,8 @@ fi
 
 
 
-expire=$(date +%Y%m%d -d "11 days ago")
 main(){
+    expire=$(date +%Y%m%d -d "11 days ago")
     red_shards
     to_be_deleted=()
     for index in ${RED_SHARDS[@]}; do
@@ -47,18 +47,21 @@ main(){
             echo -e "$ORANGE INDEX: '$index' is about to be deleted... $NC"
         fi
     done  
-
-    echo -e "$GREEN Want to continue? [Y/n] $NC"
-    read -n1 answer
-    echo ""
-    if [[ ${answer,,} == "y" ]]; then
-        for notice in ${to_be_deleted[@]};do
-            #curl --slient -XDELETE "$ES_SERVER/$notice"
-            echo -e "$PURPLE Index: '$index' DELETED"
-        done
-    else 
-        echo -e "$RED Deleting process CANCELED $NC"
-    fi
+    if [[ ${#to_be_deleted} -gt 0 ]];then
+        echo -e "$GREEN Want to continue? [Y/n] $NC"
+        read -n1 answer
+        echo ""
+        if [[ ${answer,,} == "y" ]]; then
+            for notice in ${to_be_deleted[@]};do
+                #curl --slient -XDELETE "$ES_SERVER/$notice"
+                echo -e "$PURPLE Index: '$index' DELETED"
+            done
+        else 
+            echo -e "$RED Deleting process CANCELED $NC"
+        fi
+    fi    
 }
-
-main
+while true; do
+    main
+    sleep 60
+done
