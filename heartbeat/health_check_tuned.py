@@ -16,6 +16,7 @@ import os
 import time
 from LogForHealthCheck import logger
 
+
 load_json=json.load(open("./telekey.json"))
 key=load_json.get("KEY")
 chat_id=load_json.get("CHAT_ID")
@@ -25,30 +26,8 @@ telegram_url=f"https://api.telegram.org/bot{key}/sendMessage?parse-mod=html&chat
 NCORE= len(os.sched_getaffinity(0))
 
 index_name="heartbeat-*"
-body={
-	"aggs":{
-		"service":{
-			"terms":{
-				"field":"monitor.name"
-				},
-			"aggs":{
-				"ip":{
-					"terms":{
-            "size":1000,
-						"field":"monitor.ip"
-					},
-					"aggs":{
-						"status":{
-							"terms":{
-								"field":"monitor.status"
-							}
-						}
-					}
-				}
-			}
-		}
-	},
-	"query": {
+body={	
+  "query": {
     "bool": {
       "must": [
         {
@@ -58,11 +37,47 @@ body={
               "lt": "now"
             }
           }
+        },
+        {
+          "match":{
+          "monitor.status":"down"
+        }
         }
 	  ]
 	}
+}
+, "_source": ["monitor.status","monitor.ip","monitor.name"]
+,
+"aggs":{
+  "service":{
+    "terms": {
+      "field": "monitor.name",
+      "size": 50
+    },
+    "aggs":{
+      "ip":{
+        "terms": {
+          "field": "monitor.ip",
+          "size": 50
+        }
+      }
+    }
   }
 }
+}
+
+#For Dot notation
+class Dot(object):
+    def __init__(self, data):
+        for name, value in data.items():
+            setattr(self, name, self._wrap(value))
+    def _wrap(self, value):
+        if isinstance(value, (tuple, list, set, frozenset)): 
+            return type(value)([self._wrap(v) for v in value])
+        else:
+            return Dot(value) if isinstance(value, dict) else value
+    def __repr__(self):
+        return str(self.__dict__)
 
 def connector():
     es= Elasticsearch(["IP1:PORT","IP2:PORT"],sniff_on_connection_fail=True,sniffer_timeout=30,http_auth=("<id>","<password>"))
@@ -70,30 +85,29 @@ def connector():
 
 def parser(connector):
     #list_of_services 
-    service_list=connector.search(index=index_name,body=body,size=0)["aggregations"]["service"]["buckets"]
-    for service in service_list:
-        service_dict={"service":"","hosts":[]}
-        service_name = service["key"]
-        service_dict["service"]= service_name
-        for ip in service["ip"]["buckets"]:
-            ip_address = ip["key"]
-            for stat in ip["status"]["buckets"]:
-                status = stat["key"]
-                service_dict["hosts"].append({"ip":ip_address,"status":status})
-        yield service_dict
-        #list_of_services.append(service_dict)
-    #return list_of_services
-        #it should be in a form of, for example {"service":"elasticsearch","hosts":[{"ip":"IP1","status":"up"}]}
+    service_list=Dot(connector.search(index=index_name,body=body,size=0)).aggregations.service.buckets
+    
+    #validation
+    if service_list:
+        for service in service_list:
+            service_dict={"service":service.key,"hosts":[]}
+            for ip in service.ip.buckets:
+                service_dict["hosts"].append({"ip":ip.key})
+            yield service_dict
+    else:
+        return None
 
 def alarm(service):
-    message={"text":""}
-    for host in service["hosts"]:
-        if host["status"] != "up" :
+    if service:
+        message={"text":""}
+        for host in service["hosts"]:
             message["text"]=f"[ERROR] {service['service']} -- instance {host['ip']} down!"
             requests.post(telegram_url,message)
             #Logging locally.
             logger().warning(f"[HealthCheck] [{host['ip']}] from -- {service['service']} -- DOWN.")
-
+    else:
+        return None
+        
 if __name__ == "__main__":
     while True :
         con = connector()

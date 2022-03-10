@@ -73,3 +73,29 @@ query_for_heart_beat={
 	}
   }
 }
+
+
+#Service check
+GET heartbeat-{version}-{date}/_search?size=10
+{	
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "range": {
+            "@timestamp": {
+              "gte": "now-30s",
+              "lt": "now"
+            }
+          }
+        },
+        {
+			"match":{
+          "monitor.name":"{service_name}"
+        	}
+		}
+	  ]
+	}
+}, 
+	"_source": ["monitor.status","monitor.ip","monitor.name"]
+}
