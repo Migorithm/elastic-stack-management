@@ -34,7 +34,7 @@ for node in nodes:
                 res=requests.post(node+"/command/restart",json={"token":token})
                 if res.status_code == 200:
                     print(f"Agent : {node} executed Restart...")
-                    time.sleep(5) 
+                    time.sleep(10) 
         except Exception as e:
             print(f"Error occured! {e}")
             print(e.args)
