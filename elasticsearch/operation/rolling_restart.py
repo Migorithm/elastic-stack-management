@@ -9,7 +9,7 @@ import requests
 def connector() -> Elasticsearch:
     es= Elasticsearch(["https://10.107.11.66:9200","https://10.107.11.59:9200"],
                       sniff_on_node_failure=True,sniff_timeout=30,
-                      http_auth=("elastic" , "5ctsG+MNUa*ttbQ4i5*d"),
+                      http_auth=("elastic" , "You-never-know"),
                       verify_certs=False #Same as "-k"
                       )
     return es
