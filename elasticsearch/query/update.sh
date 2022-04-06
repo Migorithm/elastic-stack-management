@@ -120,7 +120,7 @@ curl -H "Content-Type: application/json" -XPOST localhost:9200/movies/_update/2 
 #Update by Query API
 
 #Syntax
-curl -H "Content-Type: application/json" -XPOST localhost:9200/index_name/_update_by_query?conflict=proceed -d '
+curl -H "Content-Type: application/json" -XPOST localhost:9200/index_name/_update_by_query?conflicts=proceed -d '
 {
   "query":{
       "match":{
@@ -135,7 +135,7 @@ curl -H "Content-Type: application/json" -XPOST localhost:9200/index_name/_updat
 
 
 #Also possible to do issue a query on multiple indexes and multiple types at once, just like the search API:
-curl -H "Content-Type: application/json" -XPOST localhost:9200/indexA,indexB/_update_by_query/conflict=proceed -d '
+curl -H "Content-Type: application/json" -XPOST localhost:9200/indexA,indexB/_update_by_query?conflicts=proceed  -d '
 {
     "query":{
         "term":{
@@ -147,5 +147,20 @@ curl -H "Content-Type: application/json" -XPOST localhost:9200/indexA,indexB/_up
         "lang":"painless"
     }
 
+}'
+
+
+
+curl -H "Content-Type: application/json" -XPOST localhost:9200/index_name/_update_by_query?conflicts=proceed  -d '
+{
+    "query":{
+    "term":{
+    "searchRequirement.masking": "n"
 }
+},
+    "script":{
+    "source":"ctx._source.searchRequirement.masking" = '"'false'"',
+    "lang":"painless"
+    }
+}'
 
