@@ -18,9 +18,11 @@ from LogForHealthCheck import logger
 
 
 load_json=json.load(open("./telekey.json"))
-key=load_json.get("KEY")
-chat_id=load_json.get("CHAT_ID")
-telegram_url=f"https://api.telegram.org/bot{key}/sendMessage?parse-mod=html&chat_id={chat_id}"
+# key=load_json.get("KEY")
+# chat_id=load_json.get("CHAT_ID")
+# telegram_url=f"https://api.telegram.org/bot{key}/sendMessage?parse-mod=html&chat_id={chat_id}"
+urls = tuple("https://api.telegram.org/bot{}/sendMessage?parse-mod=html&chat_id={}".format(dic.get("KEY"),dic.get("CHAT_ID")) for dic in load_json)
+
 
 #Get available CPU by referring to number of services against available CPUs to this system. Only available on Unix.
 NCORE= len(os.sched_getaffinity(0))
@@ -102,7 +104,11 @@ def alarm(service):
         message={"text":""}
         for host in service["hosts"]:
             message["text"]=f"[ERROR] {service['service']} -- instance {host['ip']} down!"
-            requests.post(telegram_url,message)
+            if not service["service"].startswith("[REDIS]"):
+                requests.post(urls[1],message) # Only to vertica chat
+            else:
+                for url in urls:
+                    requests.post(url,message)
             #Logging locally.
             logger().warning(f"[HealthCheck] [{host['ip']}] from -- {service['service']} -- DOWN.")
     else:
@@ -118,4 +124,5 @@ if __name__ == "__main__":
         else:
             #In case ES server storing heartbeat data doesn't work
             message = {"text":f"[ERROR] Connection to Monitoring Server Failed"}
-            requests.post(telegram_url,message)
+            for url in urls :
+                requests.post(url,message)
