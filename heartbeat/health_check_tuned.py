@@ -11,10 +11,8 @@ import json
 from elasticsearch import Elasticsearch
 import requests
 import json
-
 import os
 import time
-from LogForHealthCheck import logger
 from functools import wraps
 import time
 
