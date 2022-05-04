@@ -11,21 +11,18 @@ import json
 from elasticsearch import Elasticsearch
 import requests
 import json
-from pathos.multiprocessing import ProcessingPool as Pool
+
 import os
 import time
 from LogForHealthCheck import logger
-
+from functools import wraps
+import time
 
 load_json=json.load(open("./telekey.json"))
 # key=load_json.get("KEY")
 # chat_id=load_json.get("CHAT_ID")
 # telegram_url=f"https://api.telegram.org/bot{key}/sendMessage?parse-mod=html&chat_id={chat_id}"
 urls = tuple("https://api.telegram.org/bot{}/sendMessage?parse-mod=html&chat_id={}".format(dic.get("KEY"),dic.get("CHAT_ID")) for dic in load_json)
-
-
-#Get available CPU by referring to number of services against available CPUs to this system. Only available on Unix.
-NCORE= len(os.sched_getaffinity(0))
 
 index_name="heartbeat-*"
 body={	
@@ -87,7 +84,7 @@ def connector():
 
 def parser(connector):
     #list_of_services 
-    service_list=Dot(connector.search(index=index_name,body=body,size=0)).aggregations.service.buckets
+    service_list=Dot(connector.search(index=index_name,body=body,size=0)).aggregations.service.buckets #I/O bound here. 
     
     #validation
     if service_list:
@@ -95,22 +92,44 @@ def parser(connector):
             service_dict={"service":service.key,"hosts":[]}
             for ip in service.ip.buckets:
                 service_dict["hosts"].append({"ip":ip.key})
-            yield service_dict
+            yield service_dict #Generator
     else:
         return None
 
+def toggler(func):
+    toggle = {}
+    @wraps(func)
+    def wrapper(*args,**kwargs):
+        message: dict 
+        service: str 
+        host: str 
+        message, service, host = func(*args,**kwargs)
+
+        if not toggle.get(host) :
+            toggle[host] = [True,time.time()]
+            print(message, "Comes in, toggle on, not send a message!")
+        else:
+            if time.time() - toggle[host][1] < 300 :    
+                toggle[host] = False
+                print(message, "Comes in, toggle off, send a message!")
+                if not service.startswith("[REDIS]"):
+                    requests.post(urls[1],message) 
+                else:
+                    for url in urls:
+                      requests.post(url,message)
+            else:
+                toggle[host] = [True,time.time()]
+    return wrapper
+
+@toggler
 def alarm(service):
     if service:
         message={"text":""}
         for host in service["hosts"]:
-            message["text"]=f"[ERROR] {service['service']} -- instance {host['ip']} down!"
-            if not service["service"].startswith("[REDIS]"):
-                requests.post(urls[1],message) # Only to vertica chat
-            else:
-                for url in urls:
-                    requests.post(url,message)
-            #Logging locally.
-            logger().warning(f"[HealthCheck] [{host['ip']}] from -- {service['service']} -- DOWN.")
+            service_name = service["service"]
+            host_ip = host['ip']
+            message["text"]=f"[ERROR] {service_name} -- instance {host_ip} down!"
+            return message, service_name, host_ip
     else:
         return None
         
@@ -118,9 +137,9 @@ if __name__ == "__main__":
     while True :
         con = connector()
         if con:
-            with Pool(NCORE) as executor:
-                executor.map(alarm,parser(con))
-            time.sleep(60)
+            for service_dict in parser(con):
+                alarm(service_dict)
+            time.sleep(30)
         else:
             #In case ES server storing heartbeat data doesn't work
             message = {"text":f"[ERROR] Connection to Monitoring Server Failed"}
